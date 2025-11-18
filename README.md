@@ -50,9 +50,9 @@ func main() {
     user := core.UserID("alice")
     _, _ = svc.AddPoints(ctx, user, core.MetricXP, 50)
 
-    // Subscribe to level ups
+    // Listen for when users level up
     unsub := svc.Subscribe(core.EventLevelUp, func(ctx context.Context, e core.Event) {
-        // handle level up
+        // do something when someone levels up
         _ = e
     })
     defer unsub()
