@@ -1,6 +1,8 @@
 package leaderboard
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"math/rand/v2"
 	"sync"
 
@@ -26,11 +28,20 @@ type SkipList struct {
 }
 
 func NewSkipList() *SkipList {
+	// Use crypto/rand to generate a secure seed for PCG
+	var seed [16]byte
+	if _, err := cryptorand.Read(seed[:]); err != nil {
+		// Fallback to zero seed if crypto/rand fails (extremely unlikely)
+		seed = [16]byte{}
+	}
+	seed1 := binary.BigEndian.Uint64(seed[:8])
+	seed2 := binary.BigEndian.Uint64(seed[8:])
+
 	return &SkipList{
 		head:   &node{},
 		lvl:    1,
 		byUser: map[core.UserID]*node{},
-		rng:    rand.New(rand.NewPCG(0, 0)),
+		rng:    rand.New(rand.NewPCG(seed1, seed2)),
 	}
 }
 

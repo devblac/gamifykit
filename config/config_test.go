@@ -198,3 +198,72 @@ func TestSecrets(t *testing.T) {
 	value = store.GetWithDefault(ctx, testKey, defaultValue)
 	assert.Equal(t, testValue, value)
 }
+
+func TestValidateConfigPath(t *testing.T) {
+	tests := []struct {
+		name        string
+		path        string
+		expectError bool
+		setup       func() string // returns path to cleanup
+	}{
+		{
+			name:        "valid json file",
+			path:        "config_test.json",
+			expectError: false,
+			setup: func() string {
+				tmpFile, _ := os.CreateTemp("", "config_test_*.json")
+				tmpFile.WriteString("{}")
+				tmpFile.Close()
+				return tmpFile.Name()
+			},
+		},
+		{
+			name:        "empty path",
+			path:        "",
+			expectError: true,
+			setup:       func() string { return "" },
+		},
+		{
+			name:        "path traversal",
+			path:        "../../../etc/passwd",
+			expectError: true,
+			setup:       func() string { return "" },
+		},
+		{
+			name:        "non-json file",
+			path:        "config.txt",
+			expectError: true,
+			setup: func() string {
+				tmpFile, _ := os.CreateTemp("", "config_test_*.txt")
+				tmpFile.WriteString("{}")
+				tmpFile.Close()
+				return tmpFile.Name()
+			},
+		},
+		{
+			name:        "nonexistent file",
+			path:        "nonexistent.json",
+			expectError: true,
+			setup:       func() string { return "" },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanupPath := tt.setup()
+			if cleanupPath != "" {
+				defer os.Remove(cleanupPath)
+				if tt.path == "config_test.json" || tt.path == "config.txt" {
+					tt.path = cleanupPath
+				}
+			}
+
+			err := validateConfigPath(tt.path)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

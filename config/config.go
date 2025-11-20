@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -115,8 +116,40 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// validateConfigPath validates that the config file path is safe
+func validateConfigPath(path string) error {
+	if path == "" {
+		return errors.New("config file path cannot be empty")
+	}
+
+	// Clean the path to resolve any .. sequences
+	cleanPath := filepath.Clean(path)
+
+	// Check for path traversal attempts
+	if strings.Contains(cleanPath, "..") {
+		return errors.New("config file path contains invalid path traversal sequences")
+	}
+
+	// Ensure it's a JSON file
+	if !strings.HasSuffix(strings.ToLower(cleanPath), ".json") {
+		return errors.New("config file must have .json extension")
+	}
+
+	// Check that the file exists and is readable
+	if _, err := os.Stat(cleanPath); err != nil {
+		return fmt.Errorf("config file not accessible: %w", err)
+	}
+
+	return nil
+}
+
 // LoadFromFile loads configuration from a JSON file
 func LoadFromFile(path string) (*Config, error) {
+	// Validate the path for security
+	if err := validateConfigPath(path); err != nil {
+		return nil, fmt.Errorf("invalid config file path: %w", err)
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
