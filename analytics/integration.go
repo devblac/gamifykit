@@ -142,10 +142,14 @@ func ExampleIntegration() {
     userID := core.UserID("user123")
 
     // Award points
-    svc.AddPoints(ctx, userID, core.MetricXP, 100)
+    if _, err := svc.AddPoints(ctx, userID, core.MetricXP, 100); err != nil {
+        fmt.Printf("Failed to award points: %v\n", err)
+    }
 
     // Award badge
-    svc.AwardBadge(ctx, userID, core.Badge("first_steps"))
+    if err := svc.AwardBadge(ctx, userID, core.Badge("first_steps")); err != nil {
+        fmt.Printf("Failed to award badge: %v\n", err)
+    }
 
     // Get real-time stats
     stats := analytics.GetRealtimeStats()

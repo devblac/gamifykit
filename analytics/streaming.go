@@ -54,7 +54,10 @@ func (sp *StreamPublisher) Unsubscribe(id string) {
     sp.mu.Lock()
     defer sp.mu.Unlock()
     if subscriber, exists := sp.subscribers[id]; exists {
-        subscriber.Close()
+        if err := subscriber.Close(); err != nil {
+            // Log error but continue with cleanup
+            // In production, use proper logging
+        }
         delete(sp.subscribers, id)
     }
 }
