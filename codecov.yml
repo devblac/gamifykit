@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+comment:
+  layout: "reach, diff, files"
+  behavior: default
+
+ignore:
+  - "**/*.pb.go"
+  - "**/*_mock.go"
+
