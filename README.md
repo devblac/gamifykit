@@ -1,10 +1,10 @@
 GamifyKit
 
-[![CI](https://github.com/GamifyKit/GamifyKit/actions/workflows/ci.yml/badge.svg)](https://github.com/GamifyKit/GamifyKit/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/GamifyKit/GamifyKit/branch/main/graph/badge.svg)](https://codecov.io/gh/GamifyKit/GamifyKit)
-[![Go Report Card](https://goreportcard.com/badge/github.com/GamifyKit/GamifyKit)](https://goreportcard.com/report/github.com/GamifyKit/GamifyKit)
-[![Go Reference](https://pkg.go.dev/badge/github.com/GamifyKit/GamifyKit.svg)](https://pkg.go.dev/github.com/GamifyKit/GamifyKit)
-[![Latest Release](https://img.shields.io/github/v/release/GamifyKit/GamifyKit)](https://github.com/GamifyKit/GamifyKit/releases)
+[![CI](https://github.com/devblac/gamifykit/actions/workflows/ci.yml/badge.svg)](https://github.com/devblac/gamifykit/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/devblac/gamifykit/branch/main/graph/badge.svg)](https://codecov.io/gh/devblac/gamifykit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/devblac/gamifykit)](https://goreportcard.com/report/github.com/devblac/gamifykit)
+[![Go Reference](https://pkg.go.dev/badge/github.com/devblac/gamifykit.svg)](https://pkg.go.dev/github.com/devblac/gamifykit)
+[![Latest Release](https://img.shields.io/github/v/release/devblac/gamifykit)](https://github.com/devblac/gamifykit/releases)
 
 High-performance, modular gamification for Go.
 
