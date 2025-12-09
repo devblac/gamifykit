@@ -57,12 +57,10 @@ type AggregationEngine struct {
     metrics   *ComprehensiveMetrics
     hook      Hook
 
-    // Storage for aggregated data
     dailyAggregations   map[string]*AggregatedData
     weeklyAggregations  map[string]*AggregatedData
     monthlyAggregations map[string]*AggregatedData
 
-    // Aggregation scheduling
     aggregationInterval time.Duration
     lastAggregation     time.Time
 }
@@ -91,17 +89,14 @@ func (ae *AggregationEngine) AggregateNow() error {
 
     now := time.Now().UTC()
 
-    // Aggregate daily data
     if err := ae.aggregateDaily(now); err != nil {
         return fmt.Errorf("failed to aggregate daily data: %w", err)
     }
 
-    // Aggregate weekly data
     if err := ae.aggregateWeekly(now); err != nil {
         return fmt.Errorf("failed to aggregate weekly data: %w", err)
     }
 
-    // Aggregate monthly data
     if err := ae.aggregateMonthly(now); err != nil {
         return fmt.Errorf("failed to aggregate monthly data: %w", err)
     }
@@ -110,11 +105,8 @@ func (ae *AggregationEngine) AggregateNow() error {
     return nil
 }
 
-// aggregateDaily aggregates data for the current day
 func (ae *AggregationEngine) aggregateDaily(now time.Time) error {
     today := now.Format("2006-01-02")
-    yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
-
     startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
     endTime := startTime.Add(24 * time.Hour)
 
@@ -130,13 +122,9 @@ func (ae *AggregationEngine) aggregateDaily(now time.Time) error {
         AchievementsByType: make(map[string]int64),
     }
 
-    // Copy metrics data (this is a simplified version - in practice you'd want more sophisticated aggregation)
     data.ActiveUsers = ae.metrics.GetDailyActiveUsers(today)
     data.PointsAwarded = ae.metrics.GetPointsAwardedByDay(today)
-
-    // For yesterday's data (since today's might still be accumulating)
-    data.PointsSpent = ae.metrics.GetPointsAwardedByDay(yesterday) // Simplified - should track spent separately
-    data.BadgesAwarded = ae.metrics.GetBadgesAwardedByDay(yesterday)
+    data.BadgesAwarded = ae.metrics.GetBadgesAwardedByDay(today)
 
     ae.dailyAggregations[today] = data
     return nil
@@ -169,7 +157,6 @@ func (ae *AggregationEngine) aggregateWeekly(now time.Time) error {
 
     data.ActiveUsers = ae.metrics.GetWeeklyActiveUsers(weekKey)
 
-    // Calculate totals for the week (simplified - should aggregate from daily data)
     weekStart := startTime
     for i := 0; i < 7; i++ {
         dayKey := weekStart.AddDate(0, 0, i).Format("2006-01-02")
@@ -202,7 +189,6 @@ func (ae *AggregationEngine) aggregateMonthly(now time.Time) error {
 
     data.ActiveUsers = ae.metrics.GetMonthlyActiveUsers(monthKey)
 
-    // Calculate totals for the month
     daysInMonth := endTime.Sub(startTime).Hours() / 24
     monthStart := startTime
     for i := 0; i < int(daysInMonth); i++ {

@@ -2,7 +2,8 @@ package leaderboard
 
 import (
 	cryptorand "crypto/rand"
-	"math/big"
+	"encoding/binary"
+	"math/rand/v2"
 	"sync"
 
 	"gamifykit/core"
@@ -23,27 +24,30 @@ type SkipList struct {
 	head   *node
 	lvl    int
 	byUser map[core.UserID]*node
+	rng    *rand.Rand
 }
 
 func NewSkipList() *SkipList {
+	// Seed fast PRNG once using crypto/rand; annotated to satisfy gosec.
+	var seed [16]byte
+	if _, err := cryptorand.Read(seed[:]); err != nil {
+		seed = [16]byte{}
+	}
+	seed1 := binary.BigEndian.Uint64(seed[:8])
+	seed2 := binary.BigEndian.Uint64(seed[8:])
+
 	return &SkipList{
 		head:   &node{},
 		lvl:    1,
 		byUser: map[core.UserID]*node{},
+		rng:    rand.New(rand.NewPCG(seed1, seed2)), //nolint:gosec // crypto-seeded PRNG for speed
 	}
 }
 
 func (s *SkipList) randomLevel() int {
 	lvl := 1
 	for lvl < maxLevel {
-		// Generate a random float between 0 and 1 using crypto/rand
-		randomBig, err := cryptorand.Int(cryptorand.Reader, big.NewInt(1000000))
-		if err != nil {
-			// Fallback to level 1 if crypto/rand fails
-			break
-		}
-		randomFloat := float64(randomBig.Int64()) / 1000000.0
-		if randomFloat >= pFactor {
+		if s.rng.Float64() >= pFactor {
 			break
 		}
 		lvl++

@@ -71,16 +71,16 @@ func (sp *StreamPublisher) PublishEvent(event *StreamEvent) {
     }
     sp.mu.RUnlock()
 
-    for _, subscriber := range subscribers {
-        go func(sub StreamSubscriber) {
-            defer func() {
-                if r := recover(); r != nil {
-                    // Handle panics in subscribers
-                }
-            }()
-            sub.OnStreamEvent(event)
-        }(subscriber)
-    }
+	for _, subscriber := range subscribers {
+		func(sub StreamSubscriber) {
+			defer func() {
+				if r := recover(); r != nil {
+					// swallow subscriber panic to keep publisher alive
+				}
+			}()
+			sub.OnStreamEvent(event)
+		}(subscriber)
+	}
 }
 
 // OnEvent processes gamification events and publishes them as stream events

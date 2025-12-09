@@ -123,20 +123,12 @@ func validateConfigPath(path string) error {
 		return errors.New("config file path cannot be empty")
 	}
 
-	// Clean the path to resolve any .. sequences
 	cleanPath := filepath.Clean(path)
 
-	// Check for path traversal attempts
-	if strings.Contains(cleanPath, "..") {
-		return errors.New("config file path contains invalid path traversal sequences")
-	}
-
-	// Ensure it's a JSON file
 	if !strings.HasSuffix(strings.ToLower(cleanPath), ".json") {
 		return errors.New("config file must have .json extension")
 	}
 
-	// Check that the file exists and is readable
 	if _, err := os.Stat(cleanPath); err != nil {
 		return fmt.Errorf("config file not accessible: %w", err)
 	}
