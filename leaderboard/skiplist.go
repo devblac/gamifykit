@@ -3,7 +3,6 @@ package leaderboard
 import (
 	cryptorand "crypto/rand"
 	"encoding/binary"
-	"math/rand/v2"
 	"sync"
 
 	"gamifykit/core"
@@ -24,35 +23,45 @@ type SkipList struct {
 	head   *node
 	lvl    int
 	byUser map[core.UserID]*node
-	rng    *rand.Rand
 }
 
 func NewSkipList() *SkipList {
-	// Seed fast PRNG once using crypto/rand; annotated to satisfy gosec.
-	var seed [16]byte
-	if _, err := cryptorand.Read(seed[:]); err != nil {
-		seed = [16]byte{}
-	}
-	seed1 := binary.BigEndian.Uint64(seed[:8])
-	seed2 := binary.BigEndian.Uint64(seed[8:])
-
 	return &SkipList{
 		head:   &node{},
 		lvl:    1,
 		byUser: map[core.UserID]*node{},
-		rng:    rand.New(rand.NewPCG(seed1, seed2)), //nolint:gosec // crypto-seeded PRNG for speed
 	}
 }
 
 func (s *SkipList) randomLevel() int {
 	lvl := 1
+	bits, err := randomUint64()
+	if err != nil {
+		return lvl
+	}
+
 	for lvl < maxLevel {
-		if s.rng.Float64() >= pFactor {
+		if bits&0b11 != 0 { // probability 3/4 to stop
 			break
 		}
 		lvl++
+		bits >>= 2
+		if bits == 0 {
+			bits, err = randomUint64()
+			if err != nil {
+				break
+			}
+		}
 	}
 	return lvl
+}
+
+func randomUint64() (uint64, error) {
+	var buf [8]byte
+	if _, err := cryptorand.Read(buf[:]); err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(buf[:]), nil
 }
 
 func less(a, b Entry) bool {
