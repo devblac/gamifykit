@@ -11,7 +11,6 @@ import (
 // A simple skip list keyed by (score desc, user asc) to achieve O(log n) updates.
 
 const maxLevel = 16
-const pFactor = 0.25
 
 type node struct {
 	e    Entry
