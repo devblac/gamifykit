@@ -2,15 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
-  test:
-    name: Build, Test, Vet
+  build:
+    name: Build, Test, Scan
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,17 +20,30 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Download deps
+        run: go mod download
+
       - name: Go env
         run: go env
 
       - name: Build
         run: go build ./...
 
-      - name: Test with coverage
-        run: go test ./... -coverprofile=coverage.out
-
       - name: Vet
         run: go vet ./...
+
+      - name: Test (race + coverage)
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          $(go env GOPATH)/bin/staticcheck ./...
+
+      - name: Gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          $(go env GOPATH)/bin/gosec ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -40,34 +52,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           fail_ci_if_error: true
-name: CI
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22.x'
-      - name: Download deps
-        run: go mod download
-      - name: Vet
-        run: go vet ./...
-      - name: Test (race)
-        run: go test -race -cover ./...
-      - name: Staticcheck
-        run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          $(go env GOPATH)/bin/staticcheck ./...
-      - name: Gosec
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          $(go env GOPATH)/bin/gosec ./...
 
 
