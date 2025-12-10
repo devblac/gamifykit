@@ -143,6 +143,7 @@ Each phase builds upon the previous one, allowing for:
 - [x] Phase 2.1: HTTP API refactor
 - [x] Phase 2.2: Leaderboard implementation
 - [x] Phase 2.3: Analytics integration
+- [x] SDK + minimal OpenAPI + GHCR container pipeline
 - [ ] Phase 3.1: Dependency injection
 - [ ] Phase 3.2: Error handling
 - [ ] Phase 3.3: Advanced features
@@ -155,7 +156,7 @@ Each phase builds upon the previous one, allowing for:
 Core infrastructure is solid! We've completed production adapters, observability, basic HTTP API improvements, and leaderboard functionality. The system is now production-ready for basic gamification use cases.
 
 Next logical steps:
-1. **Configuration System**: Environment-based configuration for production deployments
-2. **Analytics Integration**: Basic event tracking and metrics for gamification insights
-3. **Advanced HTTP API**: Authentication, rate limiting, and comprehensive error handling
-4. **Dependency Injection**: Clean service composition for better testability
+1. **Dependency Injection**: Clean service composition for better testability
+2. **Advanced HTTP API**: Authentication, rate limiting, and comprehensive error handling
+3. **Security & Auth**: AuthN/Z, rate limiting, and audit trails
+4. **Packaging**: Harden Helm/Compose/self-host artifacts after GHCR pipeline

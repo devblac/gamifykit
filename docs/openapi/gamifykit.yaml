@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: GamifyKit API
+  version: "0.1.0"
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /users/{userId}:
+    get:
+      summary: Get user state
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current gamification state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserState'
+  /users/{userId}/points:
+    post:
+      summary: Add points for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: metric
+          in: query
+          schema:
+            type: string
+            default: xp
+        - name: delta
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: New total points
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    format: int64
+                  err:
+                    type: string
+                    nullable: true
+  /users/{userId}/badges/{badge}:
+    post:
+      summary: Award a badge to a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: badge
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Badge awarded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  err:
+                    type: string
+                    nullable: true
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+        checks:
+          type: object
+          additionalProperties: true
+    UserState:
+      type: object
+      properties:
+        user_id:
+          type: string
+        points:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        badges:
+          type: object
+          additionalProperties:
+            type: object
+        levels:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        updated:
+          type: string
+          format: date-time
+
