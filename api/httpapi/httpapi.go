@@ -2,8 +2,12 @@ package httpapi
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	wsadapter "gamifykit/adapters/websocket"
 	"gamifykit/core"
@@ -17,6 +21,14 @@ type Options struct {
 	PathPrefix string
 	// AllowCORSOrigin, if non-empty, enables basic CORS with the given origin (use "*" for any).
 	AllowCORSOrigin string
+	// APIKeys, if non-empty, enables static API key auth via Authorization: Bearer or X-API-Key.
+	APIKeys []string
+	// RateLimitEnabled toggles rate limiting.
+	RateLimitEnabled bool
+	// RateLimitRPM is the allowed requests per minute per client key.
+	RateLimitRPM int
+	// RateLimitBurst defines burst capacity.
+	RateLimitBurst int
 }
 
 // NewMux builds an http.Handler exposing a minimal Gamify REST API and WebSocket stream.
@@ -42,15 +54,19 @@ func NewMux(svc *engine.GamifyService, hub *realtime.Hub, opts Options) http.Han
 	// Users API
 	mux.HandleFunc(withPrefix(opts.PathPrefix, "/users/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.NotFound(w, r)
+			writeError(w, http.StatusNotFound, "not_found", "route not found", nil)
 			return
 		}
 		parts := split(r.URL.Path, '/')
 		if len(parts) < 2 {
-			http.NotFound(w, r)
+			writeError(w, http.StatusNotFound, "not_found", "route not found", nil)
 			return
 		}
-		user := core.UserID(parts[1])
+		user, err := core.NormalizeUserID(core.UserID(parts[1]))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_user", err.Error(), nil)
+			return
+		}
 		switch r.Method {
 		case http.MethodPost:
 			if len(parts) >= 3 && parts[2] == "points" {
@@ -58,32 +74,53 @@ func NewMux(svc *engine.GamifyService, hub *realtime.Hub, opts Options) http.Han
 				if metric == "" {
 					metric = core.MetricXP
 				}
-				delta, _ := strconv.ParseInt(r.URL.Query().Get("delta"), 10, 64)
+				delta, err := strconv.ParseInt(r.URL.Query().Get("delta"), 10, 64)
+				if err != nil {
+					writeError(w, http.StatusBadRequest, "invalid_delta", "delta must be an integer", nil)
+					return
+				}
 				total, err := svc.AddPoints(r.Context(), user, metric, delta)
-				writeJSON(w, map[string]any{"total": total, "err": errString(err)})
+				if err != nil {
+					writeError(w, http.StatusBadRequest, "invalid_input", err.Error(), nil)
+					return
+				}
+				writeJSON(w, map[string]any{"total": total})
 				return
 			}
 			if len(parts) >= 4 && parts[2] == "badges" {
 				badge := core.Badge(parts[3])
-				err := svc.AwardBadge(r.Context(), user, badge)
-				writeJSON(w, map[string]any{"ok": err == nil, "err": errString(err)})
+				if err := core.ValidateBadgeID(badge); err != nil {
+					writeError(w, http.StatusBadRequest, "invalid_badge", err.Error(), nil)
+					return
+				}
+				if err := svc.AwardBadge(r.Context(), user, badge); err != nil {
+					writeError(w, http.StatusBadRequest, "invalid_input", err.Error(), nil)
+					return
+				}
+				writeJSON(w, map[string]any{"ok": true})
 				return
 			}
 		case http.MethodGet:
 			st, err := svc.GetState(r.Context(), user)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				writeError(w, http.StatusInternalServerError, "internal", err.Error(), nil)
 				return
 			}
 			writeJSON(w, st)
 			return
 		}
-		http.NotFound(w, r)
+		writeError(w, http.StatusNotFound, "not_found", "route not found", nil)
 	})
 
 	var handler http.Handler = mux
 	if opts.AllowCORSOrigin != "" {
 		handler = withCORS(handler, opts.AllowCORSOrigin)
+	}
+	if len(opts.APIKeys) > 0 {
+		handler = withAPIKeyAuth(handler, opts.APIKeys)
+	}
+	if opts.RateLimitEnabled && opts.RateLimitRPM > 0 && opts.RateLimitBurst > 0 {
+		handler = withRateLimit(handler, opts.RateLimitRPM, opts.RateLimitBurst)
 	}
 	return handler
 }
@@ -155,11 +192,16 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func errString(err error) any {
-	if err == nil {
-		return nil
-	}
-	return err.Error()
+type apiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Details any    `json:"details,omitempty"`
+}
+
+func writeError(w http.ResponseWriter, status int, code, msg string, details any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(apiError{Code: code, Message: msg, Details: details})
 }
 
 // withCORS wraps a handler with a minimal CORS policy.
@@ -175,4 +217,108 @@ func withCORS(next http.Handler, origin string) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// withAPIKeyAuth enforces a shared API key list.
+func withAPIKeyAuth(next http.Handler, apiKeys []string) http.Handler {
+	allowed := make(map[string]struct{}, len(apiKeys))
+	for _, k := range apiKeys {
+		k = strings.TrimSpace(k)
+		if k != "" {
+			allowed[k] = struct{}{}
+		}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := extractAPIKey(r)
+		if key == "" {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "missing API key", nil)
+			return
+		}
+		if _, ok := allowed[key]; !ok {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "invalid API key", nil)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// withRateLimit applies a simple token-bucket limiter per client key.
+func withRateLimit(next http.Handler, rpm int, burst int) http.Handler {
+	limiter := newRateLimiter(rpm, burst)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := clientKey(r)
+		if !limiter.allow(key) {
+			writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests", nil)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func extractAPIKey(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+		return strings.TrimSpace(auth[7:])
+	}
+	if key := r.Header.Get("X-API-Key"); key != "" {
+		return key
+	}
+	return ""
+}
+
+// clientKey uses API key if present, otherwise remote IP.
+func clientKey(r *http.Request) string {
+	if key := extractAPIKey(r); key != "" {
+		return key
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+type rateLimiter struct {
+	rpm   float64
+	burst float64
+	mu    sync.Mutex
+	b     map[string]*bucket
+}
+
+type bucket struct {
+	tokens float64
+	last   time.Time
+}
+
+func newRateLimiter(rpm, burst int) *rateLimiter {
+	return &rateLimiter{
+		rpm:   float64(rpm),
+		burst: float64(burst),
+		b:     make(map[string]*bucket),
+	}
+}
+
+func (l *rateLimiter) allow(key string) bool {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	b, ok := l.b[key]
+	if !ok {
+		l.b[key] = &bucket{tokens: l.burst - 1, last: now}
+		return true
+	}
+
+	elapsed := now.Sub(b.last).Minutes()
+	b.tokens += elapsed * l.rpm
+	if b.tokens > l.burst {
+		b.tokens = l.burst
+	}
+	if b.tokens < 1 {
+		b.last = now
+		return false
+	}
+	b.tokens--
+	b.last = now
+	return true
 }

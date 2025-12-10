@@ -62,8 +62,12 @@ func provideService(hub *realtime.Hub, storage engine.Storage) *engine.GamifySer
 
 func provideHandler(svc *engine.GamifyService, hub *realtime.Hub, cfg *config.Config) http.Handler {
 	return httpapi.NewMux(svc, hub, httpapi.Options{
-		PathPrefix:      cfg.Server.PathPrefix,
-		AllowCORSOrigin: cfg.Server.CORSOrigin,
+		PathPrefix:       cfg.Server.PathPrefix,
+		AllowCORSOrigin:  cfg.Server.CORSOrigin,
+		APIKeys:          cfg.Security.APIKeys,
+		RateLimitEnabled: cfg.Security.EnableRateLimit,
+		RateLimitRPM:     cfg.Security.RateLimit.RequestsPerMinute,
+		RateLimitBurst:   cfg.Security.RateLimit.BurstSize,
 	})
 }
 

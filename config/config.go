@@ -60,10 +60,10 @@ type ServerConfig struct {
 
 // StorageConfig holds storage adapter configuration
 type StorageConfig struct {
-	Adapter string         `json:"adapter" env:"GAMIFYKIT_STORAGE_ADAPTER"`
-	Redis   redis.Config   `json:"redis,omitempty"`
-	SQL     sqlx.Config    `json:"sql,omitempty"`
-	File    FileConfig     `json:"file,omitempty"`
+	Adapter string       `json:"adapter" env:"GAMIFYKIT_STORAGE_ADAPTER"`
+	Redis   redis.Config `json:"redis,omitempty"`
+	SQL     sqlx.Config  `json:"sql,omitempty"`
+	File    FileConfig   `json:"file,omitempty"`
 }
 
 // FileConfig holds JSON file storage configuration
@@ -89,8 +89,9 @@ type MetricsConfig struct {
 
 // SecurityConfig holds security-related configuration
 type SecurityConfig struct {
-	EnableRateLimit bool           `json:"enable_rate_limit" env:"GAMIFYKIT_SECURITY_RATE_LIMIT_ENABLED"`
+	EnableRateLimit bool            `json:"enable_rate_limit" env:"GAMIFYKIT_SECURITY_RATE_LIMIT_ENABLED"`
 	RateLimit       RateLimitConfig `json:"rate_limit,omitempty"`
+	APIKeys         []string        `json:"api_keys,omitempty" env:"GAMIFYKIT_SECURITY_API_KEYS"`
 }
 
 // RateLimitConfig holds rate limiting configuration
@@ -98,6 +99,28 @@ type RateLimitConfig struct {
 	RequestsPerMinute int           `json:"requests_per_minute" env:"GAMIFYKIT_SECURITY_RATE_LIMIT_RPM"`
 	BurstSize         int           `json:"burst_size" env:"GAMIFYKIT_SECURITY_RATE_LIMIT_BURST"`
 	CleanupInterval   time.Duration `json:"cleanup_interval" env:"GAMIFYKIT_SECURITY_RATE_LIMIT_CLEANUP"`
+}
+
+// Validate validates security settings.
+func (s SecurityConfig) Validate() error {
+	var errs []string
+	if s.EnableRateLimit {
+		if s.RateLimit.RequestsPerMinute <= 0 {
+			errs = append(errs, "rate_limit.requests_per_minute must be > 0 when rate limiting is enabled")
+		}
+		if s.RateLimit.BurstSize <= 0 {
+			errs = append(errs, "rate_limit.burst_size must be > 0 when rate limiting is enabled")
+		}
+	}
+	for i, key := range s.APIKeys {
+		if strings.TrimSpace(key) == "" {
+			errs = append(errs, fmt.Sprintf("api_keys[%d] is empty", i))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // Load loads configuration from environment variables and validates it
@@ -214,6 +237,7 @@ func DefaultConfig() *Config {
 				BurstSize:         10,
 				CleanupInterval:   5 * time.Minute,
 			},
+			APIKeys: []string{},
 		},
 	}
 }
@@ -245,6 +269,11 @@ func (c *Config) Validate() error {
 	// Validate metrics config
 	if err := c.Metrics.Validate(); err != nil {
 		errs = append(errs, fmt.Sprintf("metrics config: %v", err))
+	}
+
+	// Validate security config
+	if err := c.Security.Validate(); err != nil {
+		errs = append(errs, fmt.Sprintf("security config: %v", err))
 	}
 
 	if len(errs) > 0 {
