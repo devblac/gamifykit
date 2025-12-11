@@ -2,67 +2,42 @@ package redis
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
-	"gamifykit/core"
-
+	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"gamifykit/core"
 )
 
-// TestMain sets up the test environment
-func TestMain(m *testing.M) {
-	// Skip Redis tests if Redis is not available
-	if os.Getenv("SKIP_REDIS_TESTS") == "true" {
-		os.Exit(0)
+// newTestClient spins up a miniredis server and returns a client plus cleanup.
+func newTestClient(t *testing.T) (*redis.Client, func()) {
+	t.Helper()
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	cleanup := func() {
+		_ = client.Close()
+		mr.Close()
 	}
-
-	os.Exit(m.Run())
+	return client, cleanup
 }
 
-// redisClient creates a Redis client for testing
-func redisClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       15, // Use a separate DB for tests
-	})
-}
-
-// skipIfNoRedis skips the test if Redis is not available
-func skipIfNoRedis(t *testing.T) *redis.Client {
-	client := redisClient()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if err := client.Ping(ctx).Err(); err != nil {
-		t.Skip("Redis not available, skipping test:", err)
-		return nil
-	}
-
-	return client
-}
-
-// cleanupTestData removes test data from Redis
 func cleanupTestData(t *testing.T, client *redis.Client, userID core.UserID) {
+	t.Helper()
 	ctx := context.Background()
 	pattern := "user:" + string(userID) + ":*"
 	keys, err := client.Keys(ctx, pattern).Result()
 	if err == nil && len(keys) > 0 {
-		client.Del(ctx, keys...)
+		_, _ = client.Del(ctx, keys...).Result()
 	}
 }
 
 func TestStore_AddPoints(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()
@@ -103,11 +78,8 @@ func TestStore_AddPoints_ZeroDelta(t *testing.T) {
 }
 
 func TestStore_AwardBadge(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()
@@ -138,11 +110,8 @@ func TestStore_AwardBadge(t *testing.T) {
 }
 
 func TestStore_GetState(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()
@@ -177,11 +146,8 @@ func TestStore_GetState(t *testing.T) {
 }
 
 func TestStore_GetState_Cache(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()
@@ -227,11 +193,8 @@ func TestStore_GetState_Cache(t *testing.T) {
 }
 
 func TestStore_SetLevel(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()
@@ -261,11 +224,8 @@ func TestStore_SetLevel(t *testing.T) {
 }
 
 func TestStore_EmptyUser(t *testing.T) {
-	client := skipIfNoRedis(t)
-	if client == nil {
-		return
-	}
-	defer client.Close()
+	client, cleanup := newTestClient(t)
+	defer cleanup()
 
 	store := NewWithClient(client)
 	ctx := context.Background()

@@ -66,12 +66,12 @@ func TestConfig_Validate(t *testing.T) {
 			config: &Config{
 				Environment: EnvDevelopment,
 				Server: ServerConfig{
-					Address:         ":8080",
-					ReadTimeout:     time.Second,
-					WriteTimeout:    time.Second,
-					IdleTimeout:     time.Second,
+					Address:           ":8080",
+					ReadTimeout:       time.Second,
+					WriteTimeout:      time.Second,
+					IdleTimeout:       time.Second,
 					ReadHeaderTimeout: time.Second,
-					ShutdownTimeout: time.Second,
+					ShutdownTimeout:   time.Second,
 				},
 				Storage: StorageConfig{
 					Adapter: "memory",
@@ -89,12 +89,12 @@ func TestConfig_Validate(t *testing.T) {
 			config: &Config{
 				Environment: "",
 				Server: ServerConfig{
-					Address:         ":8080",
-					ReadTimeout:     time.Second,
-					WriteTimeout:    time.Second,
-					IdleTimeout:     time.Second,
+					Address:           ":8080",
+					ReadTimeout:       time.Second,
+					WriteTimeout:      time.Second,
+					IdleTimeout:       time.Second,
 					ReadHeaderTimeout: time.Second,
-					ShutdownTimeout: time.Second,
+					ShutdownTimeout:   time.Second,
 				},
 				Storage: StorageConfig{
 					Adapter: "memory",
@@ -112,12 +112,12 @@ func TestConfig_Validate(t *testing.T) {
 			config: &Config{
 				Environment: EnvDevelopment,
 				Server: ServerConfig{
-					Address:         ":8080",
-					ReadTimeout:     0,
-					WriteTimeout:    time.Second,
-					IdleTimeout:     time.Second,
+					Address:           ":8080",
+					ReadTimeout:       0,
+					WriteTimeout:      time.Second,
+					IdleTimeout:       time.Second,
 					ReadHeaderTimeout: time.Second,
-					ShutdownTimeout: time.Second,
+					ShutdownTimeout:   time.Second,
 				},
 				Storage: StorageConfig{
 					Adapter: "memory",

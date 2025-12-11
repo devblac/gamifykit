@@ -151,4 +151,3 @@ func (m *MetricsConfig) Validate() error {
 
 	return nil
 }
-

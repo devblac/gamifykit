@@ -57,7 +57,11 @@ func NewMux(svc *engine.GamifyService, hub *realtime.Hub, opts Options) http.Han
 			writeError(w, http.StatusNotFound, "not_found", "route not found", nil)
 			return
 		}
-		parts := split(r.URL.Path, '/')
+		path := strings.TrimPrefix(r.URL.Path, opts.PathPrefix)
+		if path == "" || path[0] != '/' {
+			path = "/" + path
+		}
+		parts := split(path, '/')
 		if len(parts) < 2 {
 			writeError(w, http.StatusNotFound, "not_found", "route not found", nil)
 			return
