@@ -1,7 +1,7 @@
 package webhook
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -14,7 +14,7 @@ func TestSink_OnEventPostsToEndpoints(t *testing.T) {
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&hits, 1)
-		_, _ = ioutil.ReadAll(r.Body)
+		_, _ = io.ReadAll(r.Body)
 		_ = r.Body.Close()
 	}))
 	defer srv.Close()
@@ -26,4 +26,3 @@ func TestSink_OnEventPostsToEndpoints(t *testing.T) {
 		t.Fatalf("expected 1 hit, got %d", hits)
 	}
 }
-
