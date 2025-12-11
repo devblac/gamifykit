@@ -169,15 +169,10 @@ func (s *Store) GetState(ctx context.Context, userID core.UserID) (core.UserStat
 		return core.UserState{}, err
 	}
 
-	// Update cache asynchronously (don't block the response)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		if err := s.updateStateCache(ctx, userID, state); err != nil {
-			// Cache update failures are not critical, just log them
-			// We don't fail the main operation for cache issues
-		}
-	}()
+	// Update cache (best-effort); keep it synchronous for determinism.
+	ctxCache, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_ = s.updateStateCache(ctxCache, userID, state)
 
 	return state, nil
 }

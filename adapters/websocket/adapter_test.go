@@ -25,10 +25,13 @@ func TestHandlerStreamsEvents(t *testing.T) {
 	}
 	defer conn.Close()
 
+	// ensure subscriber goroutine is ready
+	time.Sleep(10 * time.Millisecond)
+
 	ev := core.NewPointsAdded("alice", core.MetricXP, 5, 5)
 	hub.Broadcast(context.Background(), ev)
 
-	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, msg, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("read message: %v", err)
