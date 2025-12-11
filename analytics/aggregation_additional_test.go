@@ -52,3 +52,21 @@ func TestAggregationEngineWeeklyMonthly(t *testing.T) {
 		t.Fatalf("unexpected monthly agg: %+v", monthly)
 	}
 }
+
+func TestComprehensiveMetricsTopMetrics(t *testing.T) {
+	metrics := NewComprehensiveMetrics()
+	now := time.Now().UTC()
+	metrics.OnEvent(core.Event{Type: core.EventPointsAdded, UserID: "u1", Metric: core.MetricXP, Delta: 10, Time: now})
+	metrics.OnEvent(core.Event{Type: core.EventPointsAdded, UserID: "u1", Metric: core.MetricPoints, Delta: 20, Time: now})
+	metrics.OnEvent(core.Event{Type: core.EventBadgeAwarded, UserID: "u1", Badge: "b1", Time: now})
+
+	top := metrics.GetTopMetrics(5)
+	totalPoints, ok := top["total_points_awarded"].(int64)
+	if !ok || totalPoints != 30 {
+		t.Fatalf("unexpected total points: %v", top["total_points_awarded"])
+	}
+	totalBadges, ok := top["total_badges_awarded"].(int64)
+	if !ok || totalBadges != 1 {
+		t.Fatalf("unexpected total badges: %v", top["total_badges_awarded"])
+	}
+}

@@ -24,6 +24,21 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "json", cfg.Logging.Format)
 }
 
+func TestLoad_WithEnvOverrides(t *testing.T) {
+	t.Setenv("GAMIFYKIT_SECURITY_API_KEYS", "k1,k2")
+	t.Setenv("GAMIFYKIT_SECURITY_RATE_LIMIT_ENABLED", "true")
+	t.Setenv("GAMIFYKIT_SECURITY_RATE_LIMIT_RPM", "100")
+	t.Setenv("GAMIFYKIT_SECURITY_RATE_LIMIT_BURST", "50")
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Len(t, cfg.Security.APIKeys, 2)
+	assert.Contains(t, cfg.Security.APIKeys, "k1")
+	assert.Contains(t, cfg.Security.APIKeys, "k2")
+	assert.True(t, cfg.Security.EnableRateLimit)
+	assert.Equal(t, 100, cfg.Security.RateLimit.RequestsPerMinute)
+	assert.Equal(t, 50, cfg.Security.RateLimit.BurstSize)
+}
+
 func TestLoadFromFile(t *testing.T) {
 	// Create a temporary config file
 	configContent := `{

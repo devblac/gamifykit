@@ -32,6 +32,16 @@ func loadFromEnvRecursive(v interface{}, prefix string) error {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 
+		// Recurse into nested structs to honor their env tags
+		if field.Kind() == reflect.Struct {
+			if field.CanAddr() {
+				if err := loadFromEnvRecursive(field.Addr().Interface(), prefix); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+
 		// Get the env tag
 		envTag := fieldType.Tag.Get("env")
 		if envTag == "" {
